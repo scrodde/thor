@@ -82,7 +82,6 @@ def fetch_report_urls(batch_size):
         logwriter.writerow(log_row)
 
       db_insert(db, to_insert)
-      break
 
 def parse_href(html_content):
   # print(html_content)
@@ -117,7 +116,7 @@ def to_doc(content):
   return doc
 
 def db_connect():
-  db = sqlite3.connect('edgar_htm_idx_sample.sqlite3')
+  db = sqlite3.connect('edgar_htm_idx.sqlite3')
   return db
 
 def db_insert(db: Connection, records):
