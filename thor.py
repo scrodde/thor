@@ -9,6 +9,7 @@ from urllib.parse import urljoin, urlparse
 from lxml.html.soupparser import fromstring
 from lxml import etree
 from lxml.etree import tostring
+from analysis import lmdict, tone_count_with_negation_check
 
 @click.command()
 @click.option('-s','--batch-size', 'batch_size', default=50)
@@ -32,10 +33,12 @@ def analyze(batch_size):
       #f.close()
 
       all_text = ''.join(doc.xpath('//text()'))
-      print(all_text[0:400] + '\n[CLIPPED]')
+      # print(all_text[0:400] + '\n[CLIPPED]')
 
       # perform text analysis
-      has_positive_sentiment = len(all_text) % 2 == 0
+      result = tone_count_with_negation_check(lmdict, all_text)
+
+      has_positive_sentiment = result[1] > result[2]
 
       to_update.append((True, has_positive_sentiment, r[0]))
 
@@ -116,7 +119,7 @@ def to_doc(content):
   return doc
 
 def db_connect():
-  db = sqlite3.connect('edgar_htm_idx.sqlite3')
+  db = sqlite3.connect('edgar_htm_idx_sample.sqlite3')
   return db
 
 def db_insert(db: Connection, records):
