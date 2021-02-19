@@ -10,6 +10,7 @@ from lxml.html.soupparser import fromstring
 from lxml import etree
 from lxml.etree import tostring
 from analysis import lmdict, tone_count_with_negation_check
+from parser import parse_text
 
 @click.command()
 @click.option('-s','--batch-size', 'batch_size', default=50)
@@ -24,31 +25,28 @@ def analyze(batch_size):
       print("Analyzing: " + r[1])
       response = requests.get(r[1])
 
-      # refer to lxml on how to parse the document
-      doc = to_doc(response.content)
-
-      # Uncomment to see what the documents looks like
-      #f = open("debug_q10.html", "wb")
-      #f.write(tostring(doc, pretty_print=True))
-      #f.close()
-
-      all_text = ''.join(doc.xpath('//text()'))
-      # print(all_text[0:400] + '\n[CLIPPED]')
+      text = parse_text(response.text)
+      print(text[0:400] + '\n[CLIPPED]')
 
       # perform text analysis
-      result = tone_count_with_negation_check(lmdict, all_text)
+      result = tone_count_with_negation_check(lmdict, text)
 
       has_positive_sentiment = result[1] > result[2]
 
+      # TODO: FIXME
+      # Here you should pass in all the variables that you want to store in the database
+      # Refer to "db_update" method in what order params should be passed
       to_update.append((True, has_positive_sentiment, r[0]))
 
     db_update(db, to_update)
 
 
 @click.command()
+@click.argument('start', nargs=1)
+@click.argument('end', nargs=1)
 @click.option('-s','--batch-size', 'batch_size', default=50)
-def fetch_report_urls(batch_size):
-  """Fetches and stores the 10-Q report URLs"""
+def fetch_report_urls(start, end, batch_size):
+  """Fetches and stores the 10-K report URLs"""
   db = db_connect()
   db_ensure_init(db)
 
@@ -59,9 +57,11 @@ def fetch_report_urls(batch_size):
       SELECT ix.id, ix.conm, ix.type, ix.cik, ix.date, ix.path
       FROM "index" ix
       LEFT JOIN reports r ON ix.id = r.index_id
-      WHERE ix.type = '10-Q' AND r.id IS NULL
+      WHERE ix.type = '10-K' AND r.id IS NULL AND
+        CAST(strftime('%Y', DATE(ix.date)) as INT) >= {start} AND
+        CAST(strftime('%Y', DATE(ix.date)) as INT) <= {end}
       ORDER BY ix.date DESC
-    """)
+    """.format(start=start, end=end))
 
     for batch in iter(lambda: cmd.fetchmany(batch_size), []):
       to_insert = list()
@@ -119,7 +119,7 @@ def to_doc(content):
   return doc
 
 def db_connect():
-  db = sqlite3.connect('edgar_htm_idx_sample.sqlite3')
+  db = sqlite3.connect('edgar_htm_idx.sqlite3')
   return db
 
 def db_insert(db: Connection, records):
@@ -129,11 +129,16 @@ def db_insert(db: Connection, records):
 
 def db_update(db: Connection, records):
   c = db.cursor()
-  c.executemany("UPDATE reports SET is_analyzed = ?, has_positive_sentiment = ? where id = ?", records)
+  c.executemany("""
+    UPDATE reports SET
+    is_analyzed = ?,
+    has_positive_sentiment = ?
+    where id = ?""", records)
   db.commit()
 
 def db_ensure_init(db: Connection):
   cur = db.cursor()
+  # TODO: FIXME add any new columns you want to store in the database
   cur.execute("""CREATE TABLE IF NOT EXISTS "reports" (
     "id"	INTEGER NOT NULL,
     "index_id" INTEGER UNIQUE,
