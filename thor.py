@@ -88,7 +88,7 @@ def fetch_report_urls(start, end, batch_size):
         filename = os.path.basename(urlparse(url).path)
         print(filename)
 
-        to_insert.append((r[0], url, filetype, filename))
+        to_insert.append((r[0], r[1], r[2], r[3], r[4], url, filetype, filename))
 
         logwriter.writerow(log_row)
 
@@ -132,7 +132,7 @@ def db_connect():
 
 def db_insert(db: Connection, records):
   c = db.cursor()
-  c.executemany("INSERT INTO reports(index_id, url, filetype, filename) VALUES (?, ?, ?, ?)", records)
+  c.executemany("INSERT INTO reports(index_id, conm, type, cik, date, url, filetype, filename) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", records)
   db.commit()
 
 def db_update(db: Connection, records):
@@ -155,6 +155,10 @@ def db_ensure_init(db: Connection):
   cur.execute("""CREATE TABLE IF NOT EXISTS "reports" (
     "id"	INTEGER NOT NULL,
     "index_id" INTEGER UNIQUE,
+    "conm" TEXT,
+    "type" TEXT,
+    "cik" TEXT,
+    "date" TEXT,
     "url"	TEXT,
     "filetype"	TEXT,
     "filename"	TEXT,
