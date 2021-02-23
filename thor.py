@@ -36,7 +36,15 @@ def analyze(batch_size):
       # TODO: FIXME
       # Here you should pass in all the variables that you want to store in the database
       # Refer to "db_update" method in what order params should be passed
-      to_update.append((True, has_positive_sentiment, r[0]))
+      to_update.append((
+        True,
+        has_positive_sentiment,
+        result[0],
+        result[1],
+        result[2],
+        " ".join(result[3]),
+        " ".join(result[4]),
+        r[0]))
 
     db_update(db, to_update)
 
@@ -132,7 +140,12 @@ def db_update(db: Connection, records):
   c.executemany("""
     UPDATE reports SET
     is_analyzed = ?,
-    has_positive_sentiment = ?
+    has_positive_sentiment = ?,
+    word_count = ?,
+    pos_count = ?,
+    neg_count = ?,
+    pos_words = ?,
+    neg_words = ?
     where id = ?""", records)
   db.commit()
 
@@ -147,6 +160,11 @@ def db_ensure_init(db: Connection):
     "filename"	TEXT,
     "is_analyzed"	INTEGER DEFAULT 0,
     "has_positive_sentiment" INTEGER,
+    "word_count" INTEGER,
+    "pos_count" INTEGER,
+    "neg_count" INTEGER,
+    "pos_words" TEXT,
+    "neg_words" TEXT,
     PRIMARY KEY("id" AUTOINCREMENT)
     FOREIGN KEY (index_id) REFERENCES "index"(id)
   );""")
